@@ -8,7 +8,7 @@ using System.Drawing.Imaging;
 namespace Server {
     internal class Program {
 
-        public static string fileName = "";
+        public static Bitmap? imageData;
 
         private static void TakeScreenShot() {
             try {
@@ -23,53 +23,53 @@ namespace Server {
 
                 memoryGraphics.CopyFromScreen(0, 0, 0, 0, s);
 
-                fileName = string.Format(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) +
-                          @"\Screenshot" + "_" +
-                          DateTime.Now.ToString("(dd_MMMM_hh_mm_ss_tt)") + ".png");
-
-                memoryImage.Save(fileName, ImageFormat.Png);
-
+                imageData = memoryImage;
             }
             catch (Exception ex) {
                 Console.WriteLine(ex);
             }
+        }
 
+        static byte[] ConvertBitmapToByteArray(Bitmap bitmap) {
+            using (MemoryStream stream = new MemoryStream()) {
+
+                bitmap.Save(stream, ImageFormat.Jpeg);
+
+                return stream.ToArray();
+            }
         }
 
         static void Main(string[] args) {
 
-            var listener = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            var listener = new UdpClient(27002);
+            var client = new UdpClient(27001);
 
-            var client = new Socket(AddressFamily.InterNetwork,
-                          SocketType.Dgram,
-                          ProtocolType.Udp);
-
-
-            var Ip = IPAddress.Parse("192.168.1.108");
-            var Port = 27001;
-
-            var remoteEP = new IPEndPoint(Ip, Port);
-            listener.Bind(remoteEP);
+            var remoteEP = new IPEndPoint(IPAddress.Any, 0);
 
             var msg = "";
             var len = 0;
-            var buffer = new byte[1024];
 
-            EndPoint endEP = new IPEndPoint(IPAddress.Any, 0);
+            var connectEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 27003);
 
             while (true) {
 
-                len = listener.ReceiveFrom(buffer, ref endEP);
-
-                msg = Encoding.Default.GetString(buffer, 0, len);
+                var buffer = listener.Receive(ref remoteEP);
+                msg = Encoding.Default.GetString(buffer);
 
                 if (msg == "takescreenshot") {
-                    TakeScreenShot();
-                    msg = fileName;
-                    Console.WriteLine(fileName);
-                    buffer = Encoding.Default.GetBytes(msg);
 
-                    client.SendTo(buffer, remoteEP);
+                    TakeScreenShot();
+
+                    byte[] image = ConvertBitmapToByteArray(imageData);
+                    var chunks = image.Chunk(ushort.MaxValue - 29);
+
+                    foreach (var item in chunks) {
+                        client.Send(item, item.Length, connectEP);
+                    }
+
+                    msg = "enddata";
+                    var enddata = Encoding.Default.GetBytes(msg);
+                    client.Send(enddata, enddata.Length, connectEP);
                 }
             }
         }

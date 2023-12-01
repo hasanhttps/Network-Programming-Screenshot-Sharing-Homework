@@ -9,7 +9,7 @@
     <Grid>
         <StackPanel>
 
-            <Image Source="{Binding ScreenshotImage}" Height="350" Width="700" HorizontalAlignment="Center">
+            <Image Source="{Binding ImageData, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" Height="350" Width="700" HorizontalAlignment="Center">
                 
             </Image>
 
