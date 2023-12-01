@@ -72,26 +72,29 @@ public class MainViewModel : INotifyPropertyChanged {
 
             var result = await server.ReceiveAsync();
 
-            var msg = Encoding.Default.GetString(result.Buffer);
-            MessageBox.Show(msg);
-            if (msg != "enddata") {
-                var i = 0;
-                var temp = imageData;
-                imageData = new byte[result.Buffer.Length + temp.Length];
-                foreach (var item in temp) {
-                    imageData[i] = item;
-                    i++;
-                }
-                foreach (var item in result.Buffer) {
-                    imageData[i] = item;
-                    i++;
-                }
+            await Task.Run(async () => {
 
-            }
-            else {
-                MessageBox.Show(imageData.Length.ToString());
-                ImageData = LoadImage(imageData);
-            }
+                var msg = Encoding.Default.GetString(result.Buffer);
+                if (msg != "enddata") {
+                    var i = 0;
+                    var temp = imageData;
+                    imageData = new byte[result.Buffer.Length + temp.Length];
+                    foreach (var item in temp) {
+                        imageData[i] = item;
+                        i++;
+                    }
+                    foreach (var item in result.Buffer) {
+                        imageData[i] = item;
+                        i++;
+                    }
+
+                }
+                else {
+                    ImageData = LoadImage(imageData);
+                    imageData = new byte[0];
+                }
+            });
+
         }
     }
 
